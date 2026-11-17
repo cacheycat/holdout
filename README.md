@@ -1,51 +1,91 @@
-# Holdout — strategy research that cannot see the answer
+<div align="center">
 
-An LLM agent does quantitative strategy research under the constraints a real quant desk
-would impose on a junior researcher — and under a few more, because it is a language model
-with three years of crypto history memorised.
+# Holdout
 
-## Why "blind"?
+**Strategy research that cannot see the answer.**<br>
+An LLM quant agent with blind data, a sealed holdout it can only peek at three times, and a random-search control it has to beat.
 
-An LLM asked to "find a BTC strategy" will leak what it remembers about BTC's chart.
-Holdout removes that channel:
+![Python](https://img.shields.io/badge/python-3.10%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Built on](https://img.shields.io/badge/built%20on-agentkit-d4a13a)
 
-- the asset is an **alias** ("Asset A"), with no dates, no prices — only distributional
-  facts about the training segment (vol, autocorrelation, share of bars above the 200-bar
-  average);
-- strategies are **data, not code**: a closed JSON DSL (8 indicators, ≤3 entry / ≤2 exit
-  conditions, ATR stop, max hold), validated and clamped by the harness. The model cannot
-  execute anything;
-- the last 20% of bars is **sealed**. The agent may promote a candidate to the holdout at
-  most 3 times per run and is told only PASS or FAIL — never the numbers.
+[Demo](#demo) · [Features](#features-to-try) · [How it works](#how-it-works) · [Quick start](#quick-start) · [Tests](#tests)
 
-## The loop
+<img src="docs/media/demo.gif" alt="Holdout demo" width="820">
 
-`Recall → Hypothesise → Backtest → Critique → Reflect → Promote` (per generation).
+</div>
 
-The backtester executes signals on the **next bar's open** with fee+slippage costs. The
-critic applies seven gates: trade count, validation Sharpe, train→validation decay,
-parameter stability under ±15% jitter (8 variants), cross-asset breadth, drawdown, and a
-**deflated Sharpe ratio** (Bailey & López de Prado) whose bar rises with every strategy
-tried — so the agent pays for its own multiple testing.
+---
 
-## Self-improvement
+## Why
 
-After each generation the agent writes ≤2 falsifiable lessons to SQLite-backed memory.
-Retrieval ranks lessons by lexical relevance × a Laplace-smoothed utility prior: the share
-of past recalls that preceded an improvement in the run's frontier. Lessons that keep
-helping rise; lessons that mislead sink. The same memory persists across runs and assets.
+Ask an LLM to "find a BTC strategy" and it will quietly lean on what it remembers about BTC's chart. Even honest
+research drifts toward overfitting when you try enough ideas. Holdout is built to stop both:
 
-## Evaluation
+| Failure mode | Holdout's countermeasure |
+|---|---|
+| The model remembers the asset | **Blind research:** the asset is "Asset A", with no dates, no prices, only distributional facts |
+| The model writes code that cheats | **Closed JSON DSL:** 8 indicators, at most 3 entry and 2 exit conditions. It emits data, never code |
+| Backtests peek at the future | **Next-bar-open fills** with fees and slippage. A property test proves no indicator uses later bars |
+| Trying many ideas inflates Sharpe | **Deflated Sharpe gate:** the bar rises with every strategy tried |
+| Tuning on the test set | **Sealed holdout:** last 20% of bars, **3 peeks per run**, answers are PASS or FAIL only |
+| "Did the agent actually help?" | **Control arm:** random search over the same DSL, same gates, same budget, 8 seeds |
 
-Every configuration has a control: **random search over the same DSL, same gates, same
-trial budget, 8 seeds** (median / IQR / best-seed frontier drawn behind the agent's).
-In the first live run the agent's frontier reached 0.18 by generation 4 while the random
-median stayed at 0.00 (best seed 0.03) — and the gates promoted nothing to the sealed
-holdout, which is the honest outcome for 15 trials on one asset.
+## Demo
 
-## Setup
+<div align="center">
+<img src="docs/media/demo.gif" alt="Full tour: run summary, research loop, candidates, frontier and lessons" width="720">
+</div>
 
-`agentkit` lives in its own private repository and is installed as a dependency.
+A full tour of a finished run: 15 strategies across 5 generations, the research loop, ranked candidates with
+their gate results, the frontier against the random control, and the lessons the agent wrote for itself.
+
+## Features to try
+
+### 1. Click any candidate, read its thesis and every gate it failed
+
+<img src="docs/media/candidates.gif" alt="Browsing candidates" width="720">
+
+Each strategy shows its rule in plain language, train and validation Sharpe, a hatched **sealed** holdout cell,
+and seven gate verdicts with the numbers behind each one (trade count, decay, parameter stability under ±15% jitter,
+cross-asset breadth, drawdown, deflated Sharpe).
+
+### 2. See the agent against a random-search control, and the memory it builds
+
+<img src="docs/media/control-and-memory.gif" alt="Frontier versus random control, lessons and trace" width="720">
+
+The frontier chart draws the agent's best robust score by generation over the median, interquartile range and
+best seed of 8 random-search runs. Below it, **lessons** the agent wrote (at most two per generation, each
+falsifiable) with their learned utility, and the full event trace of the run.
+
+In the first live run the agent's frontier reached **0.18** by generation 4 while the random median stayed at
+**0.00** (best seed 0.03). The gates promoted nothing to the sealed holdout, which is the honest outcome for 15
+trials on one asset.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A[Recall<br/>lessons + RAG cards] --> B[Hypothesise<br/>JSON strategies]
+    B --> C[Backtest<br/>next-bar open, costs]
+    C --> D[Critique<br/>7 gates]
+    D --> E[Reflect<br/>write 2 lessons]
+    E --> F{Promote?}
+    F -- "≤ 3 peeks, PASS/FAIL only" --> H[(Sealed holdout)]
+    F -- next generation --> A
+```
+
+- **Self-improvement.** Lessons live in SQLite-backed memory. Retrieval ranks by lexical relevance × a
+  Laplace-smoothed utility: the share of past recalls that preceded an improvement in the run's frontier. Memory
+  persists across runs and assets.
+- **RAG.** Four knowledge cards (overfitting, trend, mean reversion, volatility and costs) retrieved by hybrid
+  BM25 + TF-IDF and cited in prompts.
+- **Harness engineering.** The model proposes; validation and clamping in code decide what can run.
+- **Data.** Binance public 4h klines (BTC, ETH, SOL), cached on disk so every backtest in a session sees identical
+  bars. About 7,000 bars each, split 60 / 20 / 20.
+
+## Quick start
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
@@ -53,25 +93,15 @@ pip install -r requirements.txt          # needs git access to cacheycat/agentki
 python app.py                            # http://localhost:8811
 ```
 
-Working on both repos at once? Skip the pinned install and link a sibling checkout:
+The LLM layer picks a provider automatically: `ANTHROPIC_API_KEY`, else a local `claude` CLI (headless, every tool
+disabled), else the deterministic baseline policy, which is also what the control arm uses.
+
+Working on both repos at once? Link a sibling checkout instead:
 
 ```bash
 pip install fastapi uvicorn numpy certifi pydantic
 ln -s ../agentkit/agentkit agentkit      # ignored by git
 ```
-
-The LLM layer picks a provider automatically: `ANTHROPIC_API_KEY`, else a local `claude`
-CLI (headless, tools disabled), else the deterministic baseline.
-
-## Tests
-
-```bash
-pip install -r requirements-dev.txt
-pytest -q && ruff check .
-```
-
-The suite includes a property check that every indicator value at bar `i` is unchanged when
-later bars are removed, and that fills happen strictly after a signal bar.
 
 ## API
 
@@ -84,5 +114,20 @@ later bars are removed, and that fills happen strictly after a signal bar.
 | POST / GET | `/api/baseline` | Run / read the 8-seed random-search control |
 | GET | `/api/runs`, `/api/runs/{id}`, `/api/runs/{id}/events` | Run list, detail, replayable SSE trace |
 
-Data: Binance public 4h klines (BTC/ETH/SOL), cached on disk under `data/` (git-ignored) so
-every backtest in a session sees identical bars. ~7,000 bars each; split 60/20/20.
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q && ruff check .
+```
+
+Includes a property check that every indicator value at bar `i` is unchanged when later bars are removed, and that
+fills happen strictly after a signal bar.
+
+## Part of a set
+
+Built on [agentkit](https://github.com/cacheycat/agentkit), alongside
+[casefile](https://github.com/cacheycat/casefile) (on-chain investigation) and
+[undertow](https://github.com/cacheycat/undertow) (whale positioning desk).
+
+> Research tooling, not investment advice.
