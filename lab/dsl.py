@@ -190,10 +190,10 @@ class Indicators:
     def atr(self, n):
         k = ("_atr_abs", n)
         if k not in self._memo:
-            h, l, c = self.b["h"], self.b["l"], self.b["c"]
+            h, low, c = self.b["h"], self.b["l"], self.b["c"]
             pc = np.roll(c, 1)
-            tr = np.maximum(h - l, np.maximum(abs(h - pc), abs(l - pc)))
-            tr[0] = h[0] - l[0]
+            tr = np.maximum(h - low, np.maximum(abs(h - pc), abs(low - pc)))
+            tr[0] = h[0] - low[0]
             self._memo[k] = self.wilder(tr, n)
         return self._memo[k]
 
@@ -223,10 +223,10 @@ class Indicators:
             return (c - self.sma(c, n)) / self.std(c, n)
 
     def _donchian(self, n, _):
-        h, l, c = self.b["h"], self.b["l"], self.b["c"]
+        h, low, c = self.b["h"], self.b["l"], self.b["c"]
         out = np.full(len(c), np.nan)
         hi = np.lib.stride_tricks.sliding_window_view(h, n).max(axis=1)
-        lo = np.lib.stride_tricks.sliding_window_view(l, n).min(axis=1)
+        lo = np.lib.stride_tricks.sliding_window_view(low, n).min(axis=1)
         with np.errstate(divide="ignore", invalid="ignore"):
             out[n - 1:] = (c[n - 1:] - lo) / (hi - lo)
         return out

@@ -16,7 +16,7 @@ ATR_N = 14
 
 
 def simulate(spec: dict, bars: dict, ind: Indicators, lo: int, hi: int) -> dict:
-    o, h, l, c = bars["o"], bars["h"], bars["l"], bars["c"]
+    o, h, low, c = bars["o"], bars["h"], bars["l"], bars["c"]
     entry = np.logical_and.reduce([ind.mask(x) for x in spec["entry"]])
     exit_ = np.logical_or.reduce([ind.mask(x) for x in spec["exit"]]) if spec["exit"] else np.zeros(len(c), bool)
     atr = ind.atr(ATR_N)
@@ -49,7 +49,7 @@ def simulate(spec: dict, bars: dict, ind: Indicators, lo: int, hi: int) -> dict:
 
         if pos:
             held += 1
-            hit = stop_px is not None and ((side > 0 and l[i] <= stop_px) or (side < 0 and h[i] >= stop_px))
+            hit = stop_px is not None and ((side > 0 and low[i] <= stop_px) or (side < 0 and h[i] >= stop_px))
             if hit:
                 fill = min(o[i], stop_px) if side > 0 else max(o[i], stop_px)  # gaps fill at the open
                 eq *= 1 + side * (fill / ref - 1)
