@@ -29,7 +29,7 @@ class ResearchIn(BaseModel):
 
 
 def _date(ms: float) -> str:
-    return dt.datetime.utcfromtimestamp(ms / 1000).strftime("%Y-%m-%d")
+    return dt.datetime.fromtimestamp(ms / 1000, tz=dt.timezone.utc).strftime("%Y-%m-%d")
 
 
 @app.get("/api/meta")
