@@ -43,11 +43,46 @@ In the first live run the agent's frontier reached 0.18 by generation 4 while th
 median stayed at 0.00 (best seed 0.03) — and the gates promoted nothing to the sealed
 holdout, which is the honest outcome for 15 trials on one asset.
 
-## Run it
+## Setup
+
+`agentkit` lives in its own private repository and is installed as a dependency.
 
 ```bash
-python holdout/app.py   # http://localhost:8811
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt          # needs git access to cacheycat/agentkit
+python app.py                            # http://localhost:8811
 ```
 
-Data: Binance public 4h klines (BTC/ETH/SOL), cached on disk so every backtest in a
-session sees identical bars. ~7,000 bars each; split 60/20/20.
+Working on both repos at once? Skip the pinned install and link a sibling checkout:
+
+```bash
+pip install fastapi uvicorn numpy certifi pydantic
+ln -s ../agentkit/agentkit agentkit      # ignored by git
+```
+
+The LLM layer picks a provider automatically: `ANTHROPIC_API_KEY`, else a local `claude`
+CLI (headless, tools disabled), else the deterministic baseline.
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest -q && ruff check .
+```
+
+The suite includes a property check that every indicator value at bar `i` is unchanged when
+later bars are removed, and that fills happen strictly after a signal bar.
+
+## API
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/api/meta` | Assets, split dates, provider mode, memory stats |
+| POST | `/api/research` | Start a research run (`asset`, `generations`, `per_gen`, `baseline`) |
+| GET | `/api/equity` | Equity curve for a strategy on a segment |
+| GET | `/api/memory` | Stored lessons with their learned utility |
+| POST / GET | `/api/baseline` | Run / read the 8-seed random-search control |
+| GET | `/api/runs`, `/api/runs/{id}`, `/api/runs/{id}/events` | Run list, detail, replayable SSE trace |
+
+Data: Binance public 4h klines (BTC/ETH/SOL), cached on disk under `data/` (git-ignored) so
+every backtest in a session sees identical bars. ~7,000 bars each; split 60/20/20.
