@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Holdout · blind strategy research</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/kit/kit.css">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div><h1>Holdout</h1><p>Strategy research that cannot see the answer</p></div>
+  </div>
+  <form class="controls" id="controls">
+    <label>Run<select id="run-select"></select></label>
+    <label>Asset<select id="asset"></select></label>
+    <label>Generations<input id="gens" type="number" min="1" max="8" value="5"></label>
+    <label>Per generation<input id="per" type="number" min="2" max="4" value="3"></label>
+    <button type="submit" id="start">Start research</button>
+  </form>
+</header>
+
+<main>
+  <section class="stats" id="stats"></section>
+
+  <section class="panel flow">
+    <div class="panel-head"><h2>Research loop</h2><span class="hint" id="mode"></span></div>
+    <div id="flow"></div>
+  </section>
+
+  <div class="grid two">
+    <section class="panel">
+      <div class="panel-head"><h2>Candidates</h2><span class="hint">ranked by robust score · click a row</span></div>
+      <div class="table-wrap"><table id="board"></table></div>
+    </section>
+    <section class="panel" id="detail"></section>
+  </div>
+
+  <div class="grid two">
+    <section class="panel">
+      <div class="panel-head"><h2>Search frontier</h2><span class="hint">best robust score after each generation</span></div>
+      <div id="frontier"></div>
+      <div class="legend" id="frontier-legend"></div>
+      <div class="panel-head sub"><h2>Lineage</h2><span class="hint">each strategy and the one it was derived from</span></div>
+      <div id="lineage"></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h2>Lessons memory</h2><span class="hint">utility = share of recalls followed by an improvement</span></div>
+      <div id="lessons"></div>
+      <div class="panel-head sub"><h2>Trace</h2><span class="hint" id="trace-hint"></span></div>
+      <div id="trace"></div>
+    </section>
+  </div>
+</main>
+<footer>Research tool on historical data with simulated fills. Nothing here places orders or is investment advice.</footer>
+<script type="module" src="/app.js"></script>
+</body>
+</html>
