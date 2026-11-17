@@ -75,8 +75,11 @@ def research(emit, *, memory: Memory, llm: LLM, alias: str = "A", generations: i
     rng = random.Random(seed)
     st: dict = {"gen": 0, "cands": [], "keys": set(), "peeks": PEEK_BUDGET, "frontier": [], "focus": None,
                 "recalled": [], "notes": [], "batch": [], "lessons_written": []}
-    log_call = lambda rec: emit("llm", rec)
-    best = lambda: max((c["score"]["robust"] for c in st["cands"]), default=0.0)
+    def log_call(rec):
+        emit("llm", rec)
+
+    def best():
+        return max((c["score"]["robust"] for c in st["cands"]), default=0.0)
 
     def recall(_):
         st["gen"] += 1
@@ -148,7 +151,6 @@ def research(emit, *, memory: Memory, llm: LLM, alias: str = "A", generations: i
     def critique(_):
         prev = st["frontier"][-1] if st["frontier"] else 0.0
         for c in st["batch"]:
-            s = c["score"]
             emit("candidate", {k: c[k] for k in ("gen", "name", "parent", "rule", "thesis", "score")})
         st["frontier"].append(round(best(), 3))
         improved = st["frontier"][-1] > prev + 1e-9
@@ -242,8 +244,10 @@ def describe_graph() -> dict:
 
 def random_baseline(alias: str, generations: int, per_gen: int, seeds: int = 8) -> dict:
     """Random search over the same vocabulary, same gates and same trial budget."""
+    import os
+    import tempfile
+
     from agentkit import Store
-    import tempfile, os
     runs = []
     for seed in range(seeds):
         scratch = Memory(Store(os.path.join(tempfile.mkdtemp(), "m.db")))
